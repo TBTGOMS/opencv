@@ -3,6 +3,7 @@
 // of this distribution and at http://opencv.org/license.html.
 
 #include "test_precomp.hpp"
+#include "opencv2/core/utils/filesystem.hpp"
 
 namespace opencv_test
 {
@@ -1008,5 +1009,70 @@ INSTANTIATE_TEST_CASE_P(videoio, videowriter_acceleration, testing::Combine(
         testing::ValuesIn(hw_types),
         testing::ValuesIn(hw_use_umat)
 ));
+
+
+typedef testing::TestWithParam<VideoCaptureAPIs> buffer_capture;
+TEST_P(buffer_capture, read)
+{
+    VideoCaptureAPIs apiPref = GetParam();
+    std::vector<VideoCaptureAPIs> supportedAPIs = videoio_registry::getBufferBackends();
+    if (!videoio_registry::hasBackend(apiPref))
+        throw SkipTestException(cv::String("Backend is not available/disabled: ") + cv::videoio_registry::getBackendName(apiPref));
+    if (std::find(supportedAPIs.begin(), supportedAPIs.end(), apiPref) == supportedAPIs.end())
+        throw SkipTestException(cv::String("Backend is not supported: ") + cv::videoio_registry::getBackendName(apiPref));
+
+    if (!videoio_registry::isBackendBuiltIn(apiPref))
+    {
+        int pluginABI, pluginAPI;
+        videoio_registry::getBufferBackendPluginVersion(apiPref, pluginABI, pluginAPI);
+        if (pluginABI < 1 || (pluginABI == 1 && pluginAPI < 2))
+            throw SkipTestException(format("Buffer capture supported since ABI/API = 1/2. %s plugin is %d/%d",
+                                           cv::videoio_registry::getBackendName(apiPref).c_str(), pluginABI, pluginAPI));
+    }
+
+    VideoCapture cap;
+    String video_file = BunnyParameters::getFilename(String(".avi"));
+    ASSERT_TRUE(utils::fs::exists(video_file));
+
+    class BufferSource : public RawVideoSource
+    {
+    public:
+        BufferSource(String path) : RawVideoSource()
+        {
+            ifs.open(path.c_str(), std::ios::in | std::ios::binary);
+        }
+        virtual bool getNextPacket(unsigned char** data, size_t* size) override
+        {
+            int sz = static_cast<int>(*size);
+            ifs.read(reinterpret_cast<char*>(*data), sz);
+            return true;
+        }
+        virtual FormatInfo format() const override {}
+        virtual void updateFormat(const FormatInfo& videoFormat) override {}
+        virtual void getExtraData(cv::Mat& extraData) const override {}
+        virtual bool get(const int propertyId, double& propertyVal) const override {}
+        virtual int getFirstFrameIdx() const override {}
+    private:
+        std::ifstream ifs;
+    };
+    auto stream = cv::makePtr<BufferSource>(video_file);
+
+    EXPECT_NO_THROW(cap.open(stream, apiPref, {}));
+    ASSERT_TRUE(cap.isOpened());
+
+    const int numFrames = 10;
+    Mat frames[numFrames];
+    Mat hardCopies[numFrames];
+    for(int i = 0; i < numFrames; i++)
+    {
+        ASSERT_NO_THROW(cap >> frames[i]);
+        EXPECT_FALSE(frames[i].empty());
+        hardCopies[i] = frames[i].clone();
+    }
+
+    for(int i = 0; i < numFrames; i++)
+        EXPECT_EQ(0, cv::norm(frames[i], hardCopies[i], NORM_INF)) << i;
+}
+INSTANTIATE_TEST_CASE_P(videoio, buffer_capture, testing::ValuesIn(backend_params));
 
 } // namespace
