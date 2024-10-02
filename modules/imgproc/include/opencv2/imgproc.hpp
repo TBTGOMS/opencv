@@ -4382,6 +4382,8 @@ CV_EXPORTS_W RotatedRect fitEllipseAMS( InputArray points );
  */
 CV_EXPORTS_W RotatedRect fitEllipseDirect( InputArray points );
 
+CV_EXPORTS_W void getClosestEllipsePoints( const RotatedRect& ellipse_params, InputArray _points, OutputArray closest_pts );
+
 /** @brief Fits a line to a 2D or 3D point set.
 
 The function fitLine fits a line to a 2D or 3D point set by minimizing \f$\sum_i \rho(r_i)\f$ where
