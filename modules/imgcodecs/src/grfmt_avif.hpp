@@ -1,6 +1,6 @@
 // This file is part of OpenCV project.
-// It is subject to the license terms in the LICENSE file found in the top-level
-// directory of this distribution and at http://opencv.org/license.html
+// It is subject to the license terms in the LICENSE file found in the top-level directory
+// of this distribution and at http://opencv.org/license.html.
 
 #ifndef _GRFMT_AVIF_H_
 #define _GRFMT_AVIF_H_
@@ -46,12 +46,11 @@ class AvifEncoder CV_FINAL : public BaseImageEncoder {
 
   bool writemulti(const std::vector<Mat>& img_vec,
                   const std::vector<int>& params) CV_OVERRIDE;
+  bool writeanimation(const Animation& animation, const std::vector<int>& params) CV_OVERRIDE;
 
   ImageEncoder newEncoder() const CV_OVERRIDE;
 
  private:
-  bool writeToOutput(const std::vector<Mat>& img_vec,
-                     const std::vector<int>& params);
   avifEncoder* encoder_;
 };
 
